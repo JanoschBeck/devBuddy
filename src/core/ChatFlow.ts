@@ -50,6 +50,7 @@ class ChatFlow implements ChatFlowContext {
   currentExternalEmoji: string = "";
   stateMachine: FlowStateMachine;
   isFromWakeListening: boolean = false;
+  buttonPressStartTime: number = 0;
 
   constructor(options: { enableCamera?: boolean } = {}) {
     console.log(`[${getCurrentTimeTag()}] ChatBot started.`);
@@ -194,7 +195,7 @@ class ChatFlow implements ChatFlowContext {
     this.wakeSessionLastSpeechAt = this.wakeSessionStartAt;
     this.endAfterAnswer = false;
     playWakeupChime();
-    this.transitionTo("wake_listening");
+    this.transitionTo("conversation_listening");
   };
 
   endWakeSession = (): void => {

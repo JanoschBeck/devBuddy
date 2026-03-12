@@ -13,6 +13,7 @@ import {
   recordAudioManually,
   recordFileFormat,
   getDynamicVoiceDetectLevel,
+  stopRecording,
 } from "../../device/audio";
 import { chatWithLLMStream } from "../../cloud-api/server";
 import { isImMode } from "../../cloud-api/llm";
@@ -40,6 +41,7 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
   sleep: (ctx: ChatFlowContext) => {
     onButtonPressed(() => {
       resetCameraModeControl();
+      ctx.buttonPressStartTime = Date.now();
       ctx.transitionTo("listening");
     });
     onButtonReleased(noop);
@@ -60,7 +62,7 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
       rag_icon_visible: false,
       ...(getCurrentStatus().text === "Listening..."
         ? {
-          text: `Long Press the button to say something${ctx.enableCamera ? ",\ndouble click to launch camera" : ""
+          text: `Tap for conversation, hold for push-to-talk${ctx.enableCamera ? ",\ndouble click to launch camera" : ""
             }.`,
         }
         : {}),
@@ -95,6 +97,7 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
     });
   },
   listening: (ctx: ChatFlowContext) => {
+    const TAP_THRESHOLD_MS = 500;
     ctx.isFromWakeListening = false;
     ctx.answerId += 1;
     ctx.wakeSessionActive = false;
@@ -103,20 +106,31 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
       }/user-${Date.now()}.${recordFileFormat}`;
     onButtonPressed(noop);
     const { result, stop } = recordAudioManually(ctx.currentRecordFilePath);
+    let tapped = false;
     onButtonReleased(() => {
+      const pressDuration = Date.now() - ctx.buttonPressStartTime;
       stop();
-      display({
-        RGB: "#ff6800",
-        image: "",
-      });
+      if (pressDuration < TAP_THRESHOLD_MS) {
+        tapped = true;
+        ctx.transitionTo("conversation_listening");
+      } else {
+        display({
+          RGB: "#ff6800",
+          image: "",
+        });
+      }
     });
     result
       .then(() => {
-        ctx.transitionTo("asr");
+        if (!tapped) {
+          ctx.transitionTo("asr");
+        }
       })
       .catch((err) => {
-        console.error("Error during recording:", err);
-        ctx.transitionTo("sleep");
+        if (!tapped) {
+          console.error("Error during recording:", err);
+          ctx.transitionTo("sleep");
+        }
       });
     display({
       status: "listening",
@@ -161,6 +175,56 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
         });
     });
   },
+  conversation_listening: (ctx: ChatFlowContext) => {
+    ctx.isFromWakeListening = ctx.wakeSessionActive;
+    ctx.answerId += 1;
+    
+    if (!ctx.wakeSessionActive) {
+      ctx.endAfterAnswer = false;
+    }
+    
+    ctx.currentRecordFilePath = `${ctx.recordingsDir
+      }/user-${Date.now()}.${recordFileFormat}`;
+    
+    let recordingStarted = false;
+    
+    onButtonPressed(() => {
+      if (recordingStarted) {
+        stopRecording();
+      }
+    });
+    onButtonReleased(noop);
+    
+    display({
+      status: "detecting",
+      emoji: "😐",
+      RGB: "#00ff00",
+      text: "Detecting voice level...",
+      rag_icon_visible: false,
+    });
+    
+    getDynamicVoiceDetectLevel().then((level) => {
+      recordingStarted = true;
+      display({
+        status: "listening",
+        emoji: "😐",
+        RGB: "#00ff00",
+        text: "Tap to stop, or pause 1s...",
+        rag_icon_visible: false,
+      });
+      recordAudio(ctx.currentRecordFilePath, ctx.wakeRecordMaxSec, level)
+        .then(() => {
+          ctx.transitionTo("asr");
+        })
+        .catch((err) => {
+          console.error("Error during conversation recording:", err);
+          if (ctx.wakeSessionActive) {
+            ctx.endWakeSession();
+          }
+          ctx.transitionTo("sleep");
+        });
+    });
+  },
   asr: (ctx: ChatFlowContext) => {
     display({
       status: "recognizing",
@@ -193,7 +257,7 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
       }
       if (ctx.wakeSessionActive) {
         if (ctx.shouldContinueWakeSession()) {
-          ctx.transitionTo("wake_listening");
+          ctx.transitionTo("conversation_listening");
         } else {
           ctx.endWakeSession();
           ctx.transitionTo("sleep");
@@ -324,7 +388,7 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
             ctx.endWakeSession();
             ctx.transitionTo("sleep");
           } else {
-            ctx.transitionTo("wake_listening");
+            ctx.transitionTo("conversation_listening");
           }
           return;
         }
@@ -379,7 +443,7 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
           ctx.endWakeSession();
           ctx.transitionTo("sleep");
         } else {
-          ctx.transitionTo("wake_listening");
+          ctx.transitionTo("conversation_listening");
         }
       } else {
         ctx.transitionTo("sleep");

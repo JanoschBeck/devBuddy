@@ -5,6 +5,7 @@ export type FlowName =
   | "camera"
   | "listening"
   | "wake_listening"
+  | "conversation_listening"
   | "asr"
   | "answer"
   | "image"
@@ -34,6 +35,7 @@ export interface ChatFlowContext {
   pendingExternalEmoji: string;
   currentExternalEmoji: string;
   isFromWakeListening: boolean;
+  buttonPressStartTime: number;
 
   transitionTo: (flowName: FlowName) => void;
   recognizeAudio: (path: string, isFromAutoListening?: boolean) => Promise<string>;
