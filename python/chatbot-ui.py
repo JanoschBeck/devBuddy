@@ -252,10 +252,7 @@ class RenderThread(threading.Thread):
         emoji_w = emoji_bbox[2] - emoji_bbox[0]
         TextUtils.draw_mixed_text(draw, image, current_emoji, emoji_font, ((image_width - emoji_w) // 2, status_font_size + 8))
         
-    
-        status_icons = self.build_status_icons(status_icon_context)
-        self.render_status_icons(draw, status_icons, image_width)
-        
+            
         return top_height
 
     def build_status_icons(self, context):
