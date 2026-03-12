@@ -163,7 +163,7 @@ const recordAudio = async (
       "0.1",
       `${voiceDetectLevel}%`,
       "1",
-      "0.7", // This is the interuption timer, which allows short pause in speech. Adjust as needed.  
+      "2.7", // This is the interuption timer, which allows short pause in speech. Adjust as needed.  
       `${voiceDetectLevel}%`,
     ];
     console.log(`Starting recording, maximum ${duration} seconds...`);
