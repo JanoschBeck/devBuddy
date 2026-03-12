@@ -16,7 +16,6 @@ STATUS_ICON_DIR = os.path.join(os.path.dirname(__file__), "status-bar-icon")
 if STATUS_ICON_DIR not in sys.path:
     sys.path.append(STATUS_ICON_DIR)
 
-from battery_icon import BatteryStatusIcon
 from network_icon import NetworkStatusIcon
 from rag_icon import RagStatusIcon
 from image_icon import ImageStatusIcon
@@ -26,14 +25,11 @@ scroll_stop_event = threading.Event()
 
 status_font_size=20
 emoji_font_size=40
-battery_font_size=13
 
 # Global variables
 current_status = "Hello"
 current_emoji = "😄"
 current_text = "Waiting for message..."
-current_battery_level = 100
-current_battery_color = ColorUtils.get_rgb255_from_any("#55FF00")
 current_scroll_top = 0
 DEFAULT_SCROLL_SPEED = 0.25
 MAX_SCROLL_SPEED = 0.5
@@ -84,7 +80,7 @@ class RenderThread(threading.Thread):
             whisplay.set_backlight(100)
             whisplay.draw_image(0, 0, whisplay.LCD_WIDTH, whisplay.LCD_HEIGHT, rgb565_data)
 
-    def render_frame(self, status, emoji, text, scroll_top, battery_level, battery_color):
+    def render_frame(self, status, emoji, text, scroll_top):
         global current_scroll_speed, current_image_path, current_image, camera_mode
         if camera_mode:
             return  # Skip rendering if in camera mode
@@ -130,7 +126,7 @@ class RenderThread(threading.Thread):
             # draw.text((self.whisplay.LCD_WIDTH // 2, self.whisplay.LCD_HEIGHT // 2), current_time, font=clock_font, fill=(255, 255, 255, 255))
             
             # render header
-            self.render_header(image, draw, status, emoji, battery_level, battery_color)
+            self.render_header(image, draw, status, emoji)
             self.whisplay.draw_image(0, 0, self.whisplay.LCD_WIDTH, header_height, ImageUtils.image_to_rgb565(image, self.whisplay.LCD_WIDTH, header_height))
 
             # render main text area
@@ -232,13 +228,12 @@ class RenderThread(threading.Thread):
             current_scroll_top = max_scroll_top
                 
 
-    def render_header(self, image, draw, status, emoji, battery_level, battery_color):
-        global current_status, current_emoji, current_battery_level, current_battery_color
-        global status_font_size, emoji_font_size, battery_font_size
+    def render_header(self, image, draw, status, emoji):
+        global current_status, current_emoji
+        global status_font_size, emoji_font_size
         
         status_font = ImageFont.truetype(self.font_path, status_font_size)
         emoji_font = ImageFont.truetype(self.font_path, emoji_font_size)
-        battery_font = ImageFont.truetype(self.font_path, battery_font_size)
 
         image_width = self.whisplay.LCD_WIDTH
 
@@ -257,16 +252,7 @@ class RenderThread(threading.Thread):
         emoji_w = emoji_bbox[2] - emoji_bbox[0]
         TextUtils.draw_mixed_text(draw, image, current_emoji, emoji_font, ((image_width - emoji_w) // 2, status_font_size + 8))
         
-        # Draw battery icon
-        status_icon_context = {
-            "battery_level": battery_level,
-            "battery_color": battery_color,
-            "battery_font": battery_font,
-            "status_font_size": status_font_size,
-            "network_connected": current_network_connected,
-            "rag_icon_visible": current_rag_icon_visible,
-            "image_icon_visible": current_image_icon_visible,
-        }
+    
         status_icons = self.build_status_icons(status_icon_context)
         self.render_status_icons(draw, status_icons, image_width)
         
@@ -274,13 +260,8 @@ class RenderThread(threading.Thread):
 
     def build_status_icons(self, context):
         icons = []
-        battery_level = context.get("battery_level")
-        battery_color = context.get("battery_color")
-        battery_font = context.get("battery_font")
         status_font_size = context.get("status_font_size")
 
-        if battery_level is not None:
-            icons.append(BatteryStatusIcon(battery_level, battery_color, battery_font, status_font_size))
         if context.get("network_connected"):
             icons.append(NetworkStatusIcon(status_font_size))
         if context.get("image_icon_visible"):
@@ -310,17 +291,17 @@ class RenderThread(threading.Thread):
     def run(self):
         frame_interval = 1 / self.fps
         while self.running:
-            self.render_frame(current_status, current_emoji, current_text, current_scroll_top, current_battery_level, current_battery_color)
+            self.render_frame(current_status, current_emoji, current_text, current_scroll_top)
             time.sleep(frame_interval)
             
     def stop(self):
         self.running = False
 
 def update_display_data(status=None, emoji=None, text=None,
-                  scroll_speed=None, scroll_sync=None, battery_level=None, battery_color=None, image_path=None,
+                  scroll_speed=None, scroll_sync=None, image_path=None,
                   network_connected=None, rag_icon_visible=None, image_icon_visible=None, transaction_id=None):
-    global current_status, current_emoji, current_text, current_battery_level
-    global current_battery_color, current_scroll_top, current_scroll_speed, current_image_path
+    global current_status, current_emoji, current_text
+    global current_scroll_top, current_scroll_speed, current_image_path
     global current_scroll_sync_char_end, current_scroll_sync_duration_ms
     global current_scroll_sync_target_top, current_scroll_sync_speed
     global current_scroll_sync_hold_until
@@ -392,8 +373,6 @@ def update_display_data(status=None, emoji=None, text=None,
     current_status = status if status is not None else current_status
     current_emoji = emoji if emoji is not None else current_emoji
     current_text = next_text if text is not None else current_text
-    current_battery_level = battery_level if battery_level is not None else current_battery_level
-    current_battery_color = battery_color if battery_color is not None else current_battery_color
     current_image_path = image_path if image_path is not None else current_image_path
 
 
@@ -463,8 +442,6 @@ def handle_client(client_socket, addr, whisplay):
                     scroll_speed = content.get("scroll_speed", None)
                     scroll_sync = content.get("scroll_sync", None)
                     response_to_client = content.get("response", None)
-                    battery_level = content.get("battery_level", None)
-                    battery_color = content.get("battery_color", None)
                     image_path = content.get("image", None)
                     network_connected = content.get("network_connected", None)
                     rag_icon_visible = content.get("rag_icon_visible", None)
@@ -477,11 +454,6 @@ def handle_client(client_socket, addr, whisplay):
                     if rgbled:
                         rgb255_tuple = ColorUtils.get_rgb255_from_any(rgbled)
                         whisplay.set_rgb_fade(*rgb255_tuple, duration_ms=500)
-                    
-                    if battery_color:
-                        battery_tuple = ColorUtils.get_rgb255_from_any(battery_color)
-                    else:
-                        battery_tuple = (0, 0, 0)
                         
                     if brightness:
                         whisplay.set_backlight(brightness)
@@ -510,12 +482,10 @@ def handle_client(client_socket, addr, whisplay):
                             send_to_all_clients(notification)
 
                     if (text is not None) or (status is not None) or (emoji is not None) or \
-                       (battery_level is not None) or (battery_color is not None) or \
                               (image_path is not None) or (network_connected is not None) or \
                             (rag_icon_visible is not None) or (image_icon_visible is not None) or (scroll_sync is not None):
                         update_display_data(status=status, emoji=emoji,
                                      text=text, scroll_speed=scroll_speed, scroll_sync=scroll_sync,
-                                     battery_level=battery_level, battery_color=battery_tuple,
                                                  image_path=image_path, network_connected=network_connected,
                                                  rag_icon_visible=rag_icon_visible,
                                          image_icon_visible=image_icon_visible,

@@ -160,16 +160,6 @@ def test_continuation_text():
         time.sleep(3)
         
         # 测试场景4: 电池状态变化
-        print("\n=== 测试场景4: 电池状态变化 ===")
-        battery_levels = [100, 85, 70, 55, 40, 25, 10]
-        battery_colors = ["#00FF00", "#66FF00", "#CCFF00", "#FFFF00", "#FF6600", "#FF3300", "#FF0000"]
-        
-        for level, color in zip(battery_levels, battery_colors):
-            client.send_message({
-                "battery_level": level,
-                "battery_color": color
-            })
-            time.sleep(0.8)
         
         # 测试场景5: 混合更新（状态+延续文字）
         print("\n=== 测试场景5: 混合更新测试 ===")
@@ -267,8 +257,6 @@ def test_interactive_chat():
             "emoji": "💬",
             "RGB": "#00CCFF",
             "brightness": 85,
-            "battery_level": 75,
-            "battery_color": "#00FF00"
         })
         
         conversation_history = ""

@@ -191,8 +191,6 @@ export class WebDisplayServer implements WebAudioBridgeServer {
       scroll_sync: this.currentStatus.scroll_sync,
       brightness: this.currentStatus.brightness,
       RGB: this.currentStatus.RGB,
-      battery_color: this.currentStatus.battery_color,
-      battery_level: this.currentStatus.battery_level,
       image: this.currentStatus.image,
       camera_mode: this.currentStatus.camera_mode,
       capture_image_path: this.currentStatus.capture_image_path,

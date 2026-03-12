@@ -19,8 +19,6 @@ export interface Status {
   };
   brightness: number;
   RGB: string;
-  battery_color: string;
-  battery_level: number | undefined;
   image: string;
   camera_mode: boolean;
   camera_capture?: boolean;
@@ -39,8 +37,6 @@ export class WhisplayDisplay {
     scroll_sync: undefined,
     brightness: 100,
     RGB: "#00FF30",
-    battery_color: "#000000",
-    battery_level: undefined,
     image: "",
     camera_mode: false,
     capture_image_path: "",
@@ -347,8 +343,6 @@ export class WhisplayDisplay {
       RGB,
       brightness,
       scroll_sync,
-      battery_level,
-      battery_color,
       image,
       camera_mode,
       camera_capture,
@@ -373,8 +367,6 @@ export class WhisplayDisplay {
     this.currentStatus.RGB = RGB;
     this.currentStatus.brightness = brightness;
     this.currentStatus.scroll_sync = scroll_sync;
-    this.currentStatus.battery_level = battery_level;
-    this.currentStatus.battery_color = battery_color;
     this.currentStatus.image = image;
     this.currentStatus.camera_mode = camera_mode;
     this.currentStatus.capture_image_path = capture_image_path;
