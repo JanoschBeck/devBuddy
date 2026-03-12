@@ -36,6 +36,7 @@ export interface ChatFlowContext {
   currentExternalEmoji: string;
   isFromWakeListening: boolean;
   buttonPressStartTime: number;
+  conversationModeActive: boolean;
 
   transitionTo: (flowName: FlowName) => void;
   recognizeAudio: (path: string, isFromAutoListening?: boolean) => Promise<string>;

@@ -51,6 +51,7 @@ class ChatFlow implements ChatFlowContext {
   stateMachine: FlowStateMachine;
   isFromWakeListening: boolean = false;
   buttonPressStartTime: number = 0;
+  conversationModeActive: boolean = false;
 
   constructor(options: { enableCamera?: boolean } = {}) {
     console.log(`[${getCurrentTimeTag()}] ChatBot started.`);

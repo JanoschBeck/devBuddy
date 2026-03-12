@@ -112,8 +112,10 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
       stop();
       if (pressDuration < TAP_THRESHOLD_MS) {
         tapped = true;
+        ctx.conversationModeActive = true;
         ctx.transitionTo("conversation_listening");
       } else {
+        ctx.conversationModeActive = false;
         display({
           RGB: "#ff6800",
           image: "",
@@ -187,9 +189,11 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
       }/user-${Date.now()}.${recordFileFormat}`;
     
     let recordingStarted = false;
+    let stoppedByUser = false;
     
     onButtonPressed(() => {
       if (recordingStarted) {
+        stoppedByUser = true;
         stopRecording();
       }
     });
@@ -217,10 +221,15 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
           ctx.transitionTo("asr");
         })
         .catch((err) => {
+          if (stoppedByUser) {
+            ctx.transitionTo("asr");
+            return;
+          }
           console.error("Error during conversation recording:", err);
           if (ctx.wakeSessionActive) {
             ctx.endWakeSession();
           }
+          ctx.conversationModeActive = false;
           ctx.transitionTo("sleep");
         });
     });
@@ -262,6 +271,10 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
           ctx.endWakeSession();
           ctx.transitionTo("sleep");
         }
+        return;
+      }
+      if (ctx.conversationModeActive) {
+        ctx.transitionTo("conversation_listening");
         return;
       }
       ctx.transitionTo("sleep");
@@ -383,9 +396,10 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
       if (ctx.currentFlowName === "answer") {
         clearPendingCapturedImgForChat();
         display({ image_icon_visible: false });
-        if (ctx.wakeSessionActive || ctx.endAfterAnswer) {
+        if (ctx.wakeSessionActive || ctx.conversationModeActive || ctx.endAfterAnswer) {
           if (ctx.endAfterAnswer) {
             ctx.endWakeSession();
+            ctx.conversationModeActive = false;
             ctx.transitionTo("sleep");
           } else {
             ctx.transitionTo("conversation_listening");
@@ -438,9 +452,10 @@ export const flowStates: Record<FlowName, FlowStateHandler> = {
     void ctx.streamExternalReply(replyText, replyEmoji);
     ctx.streamResponser.getPlayEndPromise().then(() => {
       if (ctx.currentFlowName !== "external_answer") return;
-      if (ctx.wakeSessionActive || ctx.endAfterAnswer) {
+      if (ctx.wakeSessionActive || ctx.conversationModeActive || ctx.endAfterAnswer) {
         if (ctx.endAfterAnswer) {
           ctx.endWakeSession();
+          ctx.conversationModeActive = false;
           ctx.transitionTo("sleep");
         } else {
           ctx.transitionTo("conversation_listening");
